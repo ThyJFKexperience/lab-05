@@ -5,6 +5,7 @@ import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -22,12 +23,15 @@ import java.util.ArrayList;
 public class MainActivity extends AppCompatActivity implements CityDialogFragment.CityDialogListener {
 
     private Button addCityButton;
+    private Button deleteCityButton;
     private ListView cityListView;
 
     private ArrayList<City> cityArrayList;
     private ArrayAdapter<City> cityArrayAdapter;
     private FirebaseFirestore db;
     private CollectionReference citiesRef;
+    private City selectedCity;
+    private boolean deleteMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +46,7 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
 
         // Set views
         addCityButton = findViewById(R.id.buttonAddCity);
+        deleteCityButton = findViewById(R.id.buttonDeleteCity);
         cityListView = findViewById(R.id.listviewCities);
 
         // create city array
@@ -49,7 +54,7 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
         cityArrayAdapter = new CityArrayAdapter(this, cityArrayList);
         cityListView.setAdapter(cityArrayAdapter);
 
-        // addDummyData();
+        // addDummyData(); This was here previously and I'm just gonna keep it commented out
 
         // set listeners
         addCityButton.setOnClickListener(view -> {
@@ -57,10 +62,34 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
             cityDialogFragment.show(getSupportFragmentManager(),"Add City");
         });
 
+        deleteCityButton.setOnClickListener(view -> {
+            if (deleteMode) {
+                Toast myToast = Toast.makeText(MainActivity.this, "Deletion Cancelled.",
+                        Toast.LENGTH_SHORT);
+                myToast.show();
+                deleteMode = false;
+            }
+            else {
+                Toast myToast = Toast.makeText(MainActivity.this, "Press the City You'd Like to Delete, press again to cancel",
+                        Toast.LENGTH_LONG);
+                myToast.show();
+                deleteMode = true;
+            }
+        });
+
         cityListView.setOnItemClickListener((adapterView, view, i, l) -> {
-            City city = cityArrayAdapter.getItem(i);
-            CityDialogFragment cityDialogFragment = CityDialogFragment.newInstance(city);
-            cityDialogFragment.show(getSupportFragmentManager(),"City Details");
+            selectedCity = cityArrayAdapter.getItem(i);
+            if (!deleteMode) {
+                CityDialogFragment cityDialogFragment = CityDialogFragment.newInstance(selectedCity);
+                cityDialogFragment.show(getSupportFragmentManager(), "City Details");
+            }
+            else {
+                deleteCity(selectedCity);
+                Toast myToast = Toast.makeText(MainActivity.this, "Deletion Successful!",
+                        Toast.LENGTH_SHORT);
+                myToast.show();
+                deleteMode = false;
+            }
         });
 
         db = FirebaseFirestore.getInstance();
@@ -99,6 +128,15 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
 
         DocumentReference docRef = citiesRef.document(city.getName());
         docRef.set(city);
+    }
+
+    @Override
+    public void deleteCity(City city) {
+        cityArrayList.remove(city);
+        cityArrayAdapter.notifyDataSetChanged();
+
+        DocumentReference docRef = citiesRef.document(city.getName());
+        docRef.delete();
     }
 
     /*
